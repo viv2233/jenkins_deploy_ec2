@@ -1,0 +1,41 @@
+pipeline {
+    agent any  // Default agent — overridden in stages
+
+    stages {
+        stage('Clone on Master') {
+            steps {
+                echo '📥 Cloning GitHub repo on master...'
+                dir('workspace_code') {
+                    git branch: 'jenkins', url: 'https://github.com/seunayolu/jenkins_deploy_ec2.git'
+
+                    // Stash the script here after it's cloned
+                    stash includes: 'websetup.sh', name: 'setup-script'
+                }
+            }
+        }
+
+        stage('Copy & Run on node1') {
+            agent { label 'node1' }  // Run on node1
+            steps {
+                echo '📤 Copying websetup.sh from master to node1 and executing...'
+
+                // Unstash in the workspace of node1
+                unstash 'setup-script'
+
+                sh '''
+                    chmod +x websetup.sh
+                    ./websetup.sh
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Script executed successfully on node1.'
+        }
+        failure {
+            echo '❌ Something went wrong!'
+        }
+    }
+}
